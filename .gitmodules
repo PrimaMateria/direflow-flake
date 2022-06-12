@@ -1,0 +1,3 @@
+[submodule "direflow"]
+	path = direflow
+	url = git@github.com:PrimaMateria/direflow.git
