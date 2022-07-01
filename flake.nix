@@ -4,36 +4,48 @@
       utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, utils }: 
-  let out = system: 
-  let 
-    pkgs = nixpkgs.legacyPackages."${system}";
-    npmrc = pkgs.writeText "npmrc-direflow" ''
-      prefix=~/.npm-global
-      init-author-name=Matus Benko
-      email=matus.benko@gmail.com
-    '';
-  in
-  {
-    devShell = pkgs.mkShell {
-      name = "shell.direflow.nix";
-      buildInputs = with pkgs; [ 
-        nodejs-16_x
-        nodePackages.typescript-language-server
-      ];
-      shellHook = ''
-        alias npm="npm --userconfig ${npmrc}"
+  outputs = { self, nixpkgs, utils }: {
+    overlay = import ./cypress-overlay.nix;
+  } // utils.lib.eachDefaultSystem ( system: 
+    let 
+      pkgs = import nixpkgs {
+        inherit system;
+        overlays = [ self.overlay ];
+      };
 
-        if [ ! -d "$HOME/.npm-global" ]; then 
-          mkdir "$HOME/.npm-global" 
-          echo "Created ~/.npm-global"
-
-          npm install -g @fsouza/prettierd eslint_d
-          echo "Installed prettierd and eslint_d"
-        fi
-        
-        export PATH="$HOME/.npm-global/bin:$PATH"
+      npmrc = pkgs.writeText "npmrc-direflow" ''
+        prefix=~/.npm-global
+        init-author-name=Matus Benko
+        email=matus.benko@gmail.com
       '';
-    };
-  }; in with utils.lib; eachSystem defaultSystems out;
+    in
+    {
+      devShell = pkgs.mkShell {
+        name = "nix.shell.direflow";
+        buildInputs = with pkgs; [ 
+          nodejs-16_x
+          nodePackages.typescript-language-server
+          cypress
+        ];
+        shellHook = ''
+          alias npm="npm --userconfig ${npmrc}"
+
+          if [ ! -d "$HOME/.npm-global" ]; then 
+            mkdir "$HOME/.npm-global" 
+            echo "Created ~/.npm-global"
+
+            npm install -g @fsouza/prettierd eslint_d
+            echo "Installed prettierd and eslint_d"
+          fi
+          
+          export PATH="$HOME/.npm-global/bin:$PATH"
+
+          export CYPRESS_INSTALL_BINARY=0
+          export CYPRESS_RUN_BINARY=${pkgs.cypress}/bin/Cypress
+
+          echo "Direflow shell loaded"
+        '';
+      };
+    }
+  );
 }
